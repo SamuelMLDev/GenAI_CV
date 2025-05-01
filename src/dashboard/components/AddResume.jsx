@@ -1,38 +1,57 @@
-import AddResume from "./components/AddResume";
-import { useContext, useEffect, useState } from "react";
-import ResumeItem from "./components/ResumeItem";
+import { Loader2, PlusSquare } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { useState, useContext } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useNavigate } from "react-router-dom";
 import { UserContext } from "@/context/UserContext";
-import { getFirestore, collection, getDocs } from "firebase/firestore";
-import { app } from "../utils/firebase_config";
-import Header from "@/components/custom/Header";
+import { getFirestore, doc, setDoc, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 
-const Dashboard = () => {
+const AddResume = () => {
+    const [openDialog, setOpenDialog] = useState(false);
+    const [resumeTitle, setResumeTitle] = useState("");
+    const [loading, setLoading] = useState(false);
     const { user } = useContext(UserContext);
-    const [resumeList, setResumeList] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
+    const db = getFirestore();
 
-    useEffect(() => {
-        if (user?.email) {
-            getResumesList();
+    const onCreate = async () => {
+        if (!user?.uid) {
+            console.error("User is not authenticated.");
+            return;
         }
-    }, [user]);
 
-    const getResumesList = async () => {
+        setLoading(true);
         try {
-            setLoading(true);
-            const db = getFirestore(app);
+            const db = getFirestore();
             const resumesRef = collection(db, "usersByEmail", user.email, "resumes");
-            const querySnapshot = await getDocs(resumesRef);
 
-            const resumes = querySnapshot.docs.map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-            }));
+            // Query to get the highest resumeId
+            const q = query(resumesRef, orderBy("resumeId", "desc"), limit(1));
+            const querySnapshot = await getDocs(q);
 
-            console.log("Resumes fetched from Firestore:", resumes);
-            setResumeList(resumes);
+            let newResumeId = 1; // Default to 1 if no resumes exist
+            if (!querySnapshot.empty) {
+                const lastResume = querySnapshot.docs[0].data();
+                newResumeId = (lastResume.resumeId || 0) + 1;
+            }
+
+            // Create a new resume document
+            const resumeDocRef = doc(resumesRef, `resume-${newResumeId}`);
+            // await setDoc(resumeDocRef, { ...resumeData, resumeId: newResumeId });
+            await setDoc(resumeDocRef, { resumeId: newResumeId });
+            console.log("Resume created successfully!")
+            setLoading(false);
+            setOpenDialog(false);
+            navigate(`/dashboard/${user.email}/${newResumeId}/edit`)
         } catch (error) {
-            console.error("Error fetching resumes: ", error);
+            console.error("Error creating resume:", error);
         } finally {
             setLoading(false);
         }
@@ -40,29 +59,37 @@ const Dashboard = () => {
 
     return (
         <div>
-            <Header />
-            <div className="p-10 md:px-20 lg:px-32">
-                <h1 className="font-bold text-3xl">My Resume</h1>
-                <p>Start Creating AI Resume for your next job role</p>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mt-10 gap-5">
-                    <AddResume />
-                    {loading ? (
-                        <div>Loading...</div>
-                    ) : resumeList.length > 0 ? (
-                        resumeList.map((resume) => (
-                            <div key={resume.id}>
-                                <ResumeItem resume={resume} refreshData={getResumesList} />
-                            </div>
-                        ))
-                    ) : (
-                        <div className="flex m-0 h-full items-center justify-center border border-black rounded-xl border-dotted border-dashed">
-                            <p>No resume found</p>
-                        </div>
-                    )}
-                </div>
+            <div
+                className="p-14 py-24 border flex items-center justify-center bg-secondary rounded-lg h-[280px] hover:scale-105 transition-all hover:shadow-sm cursor-pointer border-dashed border-black"
+                onClick={() => setOpenDialog(true)}
+            >
+                <PlusSquare />
             </div>
+            <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Create New Resume</DialogTitle>
+                        <DialogDescription>
+                            <p>Add a title for your new resume</p>
+                            <Input
+                                className="my-2"
+                                placeholder="Ex. Full Stack Developer"
+                                onChange={(e) => setResumeTitle(e.target.value)}
+                            />
+                        </DialogDescription>
+                        <div className="flex justify-end gap-5">
+                            <Button onClick={() => setOpenDialog(false)} variant="ghost">
+                                Cancel
+                            </Button>
+                            <Button disabled={!resumeTitle || loading} onClick={onCreate}>
+                                {loading ? <Loader2 className="animate-spin" /> : "Create"}
+                            </Button>
+                        </div>
+                    </DialogHeader>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
 
-export default Dashboard;
+export default AddResume;
