@@ -45,7 +45,14 @@ const RichTextEditor = ({ onRichTextEditorChange, index, defaultValue }) => {
         const resp = result.response.text()
         setLoading(false);
 
-        setValue(resp.replace('[', '').replace(']', '').replace(/"/g, ''));
+        const cleaned = resp
+            .replace(/"\s*,\s*"/g, "\n")           // Convert comma-separated strings into new lines
+            .replace(/"\s*\.\s*,/g, ".")           // Fix malformed punctuation
+            .replace(/\.,/g, ".")                  // Specifically target ".,"
+            .replace(/[\[\]"]/g, "")               // Remove brackets and extra quotes
+            .trim();
+
+        setValue(cleaned);
     }
     return (
         <div>

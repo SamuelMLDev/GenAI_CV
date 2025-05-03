@@ -8,7 +8,25 @@ import { AIchatSession } from "../../../../../service/AiModel";
 import { getFirestore, doc, setDoc } from "firebase/firestore";
 import { app } from "@/utils/firebase_config";
 
-const prompt = `Given the job title "{jobTitle}", provide three job summary suggestions for a resume. Each suggestion should be in JSON format with fields "experience_level" (values can be "Fresher", "Mid-level", "Experienced") and "summary" (a brief summary). Output an array of JSON objects.`;
+const prompt = `
+Given the job title "{jobTitle}", generate 3 concise and ATS-optimized professional summary suggestions.
+
+Each summary must:
+- Be 3–5 lines long
+- Follow a third-person implied style (no "I" or "my")
+- Begin with strong, active verbs (e.g., Led, Delivered, Spearheaded)
+- Mention the candidate's years of experience (e.g., "5+ years")
+- Emphasize core domain focus and major achievements
+- Include specific tools, technologies, or methodologies related to the job title (e.g., "API documentation", "cloud-native apps", "UX writing")
+- Include phrases from the job title directly to optimize for Applicant Tracking Systems (ATS)
+- Remain human-readable, impact-driven, and professional in tone
+
+Respond with a **JSON array** of 3 objects. Each object must contain:
+- "experience_level": either "Fresher", "Mid-level", or "Experienced"
+- "summary": the summary string (one paragraph, not bullet points)
+
+Do not include any explanations—only return the array.
+`;
 
 const SummaryForm = ({ resumeId, email, enableNext }) => {
     const { resumeInfo, setResumeInfo } = useContext(ResumeContext);
