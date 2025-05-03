@@ -13,7 +13,10 @@ const Header = () => {
             <Link to='/'>
                 <div className="flex justify-center align-middle items-center gap-3">
                     <img src="/logo.svg" />
-                    <h1 id="headingTitle">Gen<span id="cv">CV</span></h1>
+                    <h1 id="headingTitle">
+                        <span className="text-blue-600">Gen</span><span className="text-blue-600">CV</span>
+                    </h1>
+
                 </div>
             </Link>
             {user ?
