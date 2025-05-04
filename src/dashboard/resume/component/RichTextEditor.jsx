@@ -24,41 +24,76 @@ import {
 import { AIchatSession } from "../../../../service/AiModel";
 import { toast } from "sonner";
 
-const PROMPT = "Forget everything from previous Promtp request provide me output for this,{positionTitle},Depending on the position title and give me  4-5 ats friendly points that are one liners for my experience in resume,give me result in HTML Format and give me the points directly eg: Developed and deployed machine learning models. Like this just string nothing else without any kind of object heirarchy."
+const EXPERIENCE_PROMPT =
+    "Forget everything from previous prompts. Provide me 4–5 ATS-friendly one-line bullet points in HTML for experience titled “{positionTitle}”. Output only the HTML strings, no JSON or wrappers.";
 
-const RichTextEditor = ({ onRichTextEditorChange, index, defaultValue }) => {
+const RichTextEditor = ({
+    onRichTextEditorChange,
+    index,
+    defaultValue,
+    context = "experience",
+}) => {
     const [value, setValue] = useState(defaultValue);
-    const { resumeInfo, setResumeInfo } = useContext(ResumeContext)
+    const { resumeInfo } = useContext(ResumeContext);
     const [loading, setLoading] = useState(false);
 
-    const GenerateSummaryFromaI = async () => {
+    const GenerateSummaryFromAI = async () => {
         setLoading(true);
-        if (!resumeInfo.experience[index].title) {
-            toast.error("Please add position title")
-            return;
+
+        let prompt;
+        if (context === "education") {
+            // dynamically build the education prompt using the current form values
+            const edu = resumeInfo?.education?.[index] || {};
+            prompt = `
+education_summary: Generate an ATS-optimized, 3–5 line education summary based on:
+degree ${edu.degree || ""}, field of study ${edu.fieldOfStudy || ""},
+university ${edu.school || ""}, graduation year ${edu.graduationDate || ""}.
+Write a single paragraph in active voice, implied third-person, no JSON or bullets.
+      `.trim();
+        } else {
+            const title = resumeInfo?.experience?.[index]?.title;
+            if (!title) {
+                toast.error("Please add a position title first");
+                setLoading(false);
+                return;
+            }
+            prompt = EXPERIENCE_PROMPT.replace("{positionTitle}", title);
         }
-        console.log(resumeInfo.experience[index].title);
-        const prompt = PROMPT.replace('{positionTitle}', resumeInfo?.experience[index]?.title)
-        console.log(prompt)
-        const result = await AIchatSession.sendMessage(prompt);
-        console.log(result.response.text())
-        const resp = result.response.text()
-        setLoading(false);
 
-        const cleaned = resp
-            .replace(/"\s*,\s*"/g, "\n")           // Convert comma-separated strings into new lines
-            .replace(/"\s*\.\s*,/g, ".")           // Fix malformed punctuation
-            .replace(/\.,/g, ".")                  // Specifically target ".,"
-            .replace(/[\[\]"]/g, "")               // Remove brackets and extra quotes
-            .trim();
+        try {
+            const result = await AIchatSession.sendMessage(prompt);
+            const raw = await result.response.text();
+            const cleaned = raw
+                .replace(/"\s*,\s*"/g, "\n")
+                .replace(/"\s*\.\s*,/g, ".")
+                .replace(/\.,/g, ".")
+                .replace(/[{}\[\]"]/g, "")
+                .trim();
 
-        setValue(cleaned);
-    }
+            // update both the editor's internal state AND your form context in one go
+            setValue(cleaned);
+            onRichTextEditorChange({ target: { value: cleaned } });
+        } catch (error) {
+            toast.error("Error generating summary.");
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div>
             <div className="flex justify-between my-2">
                 <label className="text-xs">Summary</label>
-                <Button onClick={GenerateSummaryFromaI} variant="outline" size="sm" className="flex gap-2 border-primary text-primary"><Brain className="h-4 w-4" />{loading ? <Loader2 className="animate-spin" /> : 'Generate from AI'}</Button>
+                <Button
+                    onClick={GenerateSummaryFromAI}
+                    variant="outline"
+                    size="sm"
+                    className="flex gap-2 border-primary text-primary"
+                >
+                    <Brain className="h-4 w-4" />
+                    {loading ? <Loader2 className="animate-spin" /> : "Generate from AI"}
+                </Button>
             </div>
             <EditorProvider>
                 <Editor
@@ -84,7 +119,6 @@ const RichTextEditor = ({ onRichTextEditorChange, index, defaultValue }) => {
                         <HtmlButton />
                         <Separator />
                         <BtnStyles />
-
                     </Toolbar>
                 </Editor>
             </EditorProvider>
@@ -93,3 +127,5 @@ const RichTextEditor = ({ onRichTextEditorChange, index, defaultValue }) => {
 };
 
 export default RichTextEditor;
+
+

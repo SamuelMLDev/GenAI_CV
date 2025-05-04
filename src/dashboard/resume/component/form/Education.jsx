@@ -147,10 +147,10 @@ const Education = ({ resumeId, email, enableNext }) => {
                                     />
                                 </div>
                                 <div className="col-span-2">
-                                    {/* <label className="text-xs">Description</label> */}
                                     <RichTextEditor
                                         index={index}
-                                        value={item.description}
+                                        context="education"
+                                        defaultValue={item.description}
                                         onRichTextEditorChange={(event) =>
                                             handleRichTextEditor(event, "description", index)
                                         }
@@ -187,4 +187,4 @@ const Education = ({ resumeId, email, enableNext }) => {
     );
 };
 
-export default Education; 
+export default Education;

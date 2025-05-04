@@ -10,15 +10,12 @@ import { getFirestore, doc, setDoc } from "firebase/firestore";
 import { app } from "@/utils/firebase_config";
 import { toast } from "sonner";
 
-const formField = {
-    name: "",
-    rating: 0,
-};
-
 const Skills = ({ resumeId, email, enableNext }) => {
     const { resumeInfo, setResumeInfo } = useContext(ResumeContext);
     const [skillsList, setSkillsList] = useState(() =>
-        resumeInfo?.skills?.length > 0 ? resumeInfo.skills : [formField]
+        resumeInfo?.skills?.length > 0
+            ? resumeInfo.skills
+            : [{ name: "", rating: 0 }]
     );
     const [loading, setLoading] = useState(false);
     const [shouldUpdateContext, setShouldUpdateContext] = useState(false);
@@ -43,7 +40,11 @@ const Skills = ({ resumeId, email, enableNext }) => {
     }, []);
 
     const addNewSkill = useCallback(() => {
-        setSkillsList((prev) => [...prev, { ...formField }]);
+        setSkillsList((prev) => [
+            ...prev,
+            // always start with a fresh empty object
+            { name: "", rating: 0 },
+        ]);
         setShouldUpdateContext(true);
     }, []);
 
