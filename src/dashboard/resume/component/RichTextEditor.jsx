@@ -1,5 +1,3 @@
-/* eslint-disable no-unused-vars */
-/* eslint-disable react/prop-types */
 import { Button } from "@/components/ui/button";
 import { ResumeContext } from "@/context/ResumeContext";
 import { Brain, Loader2 } from "lucide-react";
@@ -25,7 +23,7 @@ import { AIchatSession } from "../../../../service/AiModel";
 import { toast } from "sonner";
 
 const EXPERIENCE_PROMPT =
-    "Forget everything from previous prompts. Provide me 4–5 ATS-friendly one-line bullet points in HTML for experience titled “{positionTitle}”. Output only the HTML strings, no JSON or wrappers.";
+    `Forget everything from previous prompts. Provide a concise paragraph summarizing the experience titled “{positionTitle}” in 3–5 sentences. Use active voice, implied third-person, mention achievements and tools. Do not wrap in JSON, no curly braces, no quotation marks.`;
 
 const RichTextEditor = ({
     onRichTextEditorChange,
@@ -42,14 +40,8 @@ const RichTextEditor = ({
 
         let prompt;
         if (context === "education") {
-            // dynamically build the education prompt using the current form values
             const edu = resumeInfo?.education?.[index] || {};
-            prompt = `
-education_summary: Generate an ATS-optimized, 3–5 line education summary based on:
-degree ${edu.degree || ""}, field of study ${edu.fieldOfStudy || ""},
-university ${edu.school || ""}, graduation year ${edu.graduationDate || ""}.
-Write a single paragraph in active voice, implied third-person, no JSON or bullets.
-      `.trim();
+            prompt = `Generate an ATS-optimized 3–5 line education summary based on the following details: degree ${edu.degree || ""}, field of study ${edu.fieldOfStudy || ""}, university ${edu.school || ""}, graduation date ${edu.graduationDate || ""}. Write a single paragraph in active voice, implied third-person. No JSON, no curly braces, no quotation marks.`;
         } else {
             const title = resumeInfo?.experience?.[index]?.title;
             if (!title) {
@@ -63,14 +55,24 @@ Write a single paragraph in active voice, implied third-person, no JSON or bulle
         try {
             const result = await AIchatSession.sendMessage(prompt);
             const raw = await result.response.text();
-            const cleaned = raw
-                .replace(/"\s*,\s*"/g, "\n")
-                .replace(/"\s*\.\s*,/g, ".")
-                .replace(/\.,/g, ".")
-                .replace(/[{}\[\]"]/g, "")
-                .trim();
-
-            // update both the editor's internal state AND your form context in one go
+            let cleaned = raw.trim();
+            // If the response is JSON-wrapped, parse it
+            if (/^[{[]/.test(cleaned)) {
+                try {
+                    const obj = JSON.parse(cleaned);
+                    // if array, take first element
+                    const data = Array.isArray(obj) ? obj[0] : obj;
+                    // pick possible keys
+                    const key = data.summary !== undefined ? 'summary' : data.education_summary !== undefined ? 'education_summary' : null;
+                    if (key) {
+                        cleaned = data[key];
+                    }
+                } catch (e) {
+                    // fallback leave raw
+                }
+            }
+            // strip any remaining quotes or braces
+            cleaned = cleaned.replace(/^["{]+|["}]+$/g, '').trim();
             setValue(cleaned);
             onRichTextEditorChange({ target: { value: cleaned } });
         } catch (error) {
@@ -127,5 +129,3 @@ Write a single paragraph in active voice, implied third-person, no JSON or bulle
 };
 
 export default RichTextEditor;
-
-
